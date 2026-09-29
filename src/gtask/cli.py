@@ -340,3 +340,75 @@ def update(
     else:
         task = api.patch_task(tasklist["id"], task["id"], changes)
     emit(task, _json(ctx, json_), f"Updated {task['id']}  {task['title']}")
+
+
+# ---- completion, deletion, clearing ----------------------------------------
+
+
+def _resolve_all(api: TasksClient, refs: list[str], list_ref: str | None) -> list[tuple[dict, dict]]:
+    """Resolve every reference before any write, so a bad one aborts the whole command."""
+    default = config.get_default_list()
+    return [resolve_task(api, ref, list_ref, default) for ref in refs]
+
+
+@app.command()
+@handle_errors
+def done(ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+    """Mark tasks completed."""
+    api = client()
+    results = [
+        api.patch_task(tasklist["id"], task["id"], {"status": "completed"})
+        for tasklist, task in _resolve_all(api, task_refs, list_ref)
+    ]
+    emit(results, _json(ctx, json_), "\n".join(f"Completed {t['id']}  {t['title']}" for t in results))
+
+
+@app.command()
+@handle_errors
+def undone(ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+    """Reopen completed tasks."""
+    api = client()
+    results = [
+        api.update_task(tasklist["id"], task["id"], _put_body(task, {"completed"}, status="needsAction"))
+        for tasklist, task in _resolve_all(api, task_refs, list_ref)
+    ]
+    emit(results, _json(ctx, json_), "\n".join(f"Reopened {t['id']}  {t['title']}" for t in results))
+
+
+@app.command()
+@handle_errors
+def delete(
+    ctx: typer.Context,
+    task_refs: TasksArg,
+    list_ref: ListOpt = None,
+    yes: YesOpt = False,
+    json_: JsonOpt = False,
+) -> None:
+    """Delete tasks (subtasks go with their parent)."""
+    api = client()
+    pairs = _resolve_all(api, task_refs, list_ref)
+    as_json = _json(ctx, json_)
+    if not yes and not as_json:
+        listing = "\n".join(f"  {task['id']}  {task['title']}" for _, task in pairs)
+        typer.confirm(f"Delete {len(pairs)} task(s):\n{listing}\nProceed?", abort=True)
+    for tasklist, task in pairs:
+        api.delete_task(tasklist["id"], task["id"])
+    emit(
+        {"deleted": [task["id"] for _, task in pairs]},
+        as_json,
+        "\n".join(f"Deleted {task['id']}  {task['title']}" for _, task in pairs),
+    )
+
+
+@app.command()
+@handle_errors
+def clear(ctx: typer.Context, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+    """Hide all completed tasks in a list (the app's 'Delete all completed tasks')."""
+    api = client()
+    tasklist = resolve_list(api, list_ref, config.get_default_list())
+    api.clear_tasks(tasklist["id"])
+    emit(
+        {"cleared": tasklist["id"]},
+        _json(ctx, json_),
+        f"Cleared completed tasks from {tasklist['title']}",
+    )
