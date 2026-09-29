@@ -23,7 +23,10 @@ def test_order_tree_nests_children_by_position():
         make("p1", "first parent", position="0"),
     ]
     assert [(t["id"], d) for t, d in order_tree(tasks)] == [
-        ("p1", 0), ("c1", 1), ("c2", 1), ("p2", 0)
+        ("p1", 0),
+        ("c1", 1),
+        ("c2", 1),
+        ("p2", 0),
     ]
 
 

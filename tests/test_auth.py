@@ -82,6 +82,7 @@ def test_login_reuses_installed_secret(monkeypatch, cfg):
             class C:
                 def to_json(self):
                     return "{}"
+
             return C()
 
     monkeypatch.setattr(auth, "InstalledAppFlow", FakeFlow)
@@ -140,7 +141,7 @@ def test_load_credentials_expired_refreshes_and_saves(cfg, monkeypatch):
 
     def fake_refresh(self, request):
         self.token = "fresh"
-        self.expiry = datetime(2099, 1, 1)
+        self.expiry = datetime(2099, 1, 1)  # noqa: DTZ001
 
     monkeypatch.setattr(Credentials, "refresh", fake_refresh)
     creds = auth.load_credentials()
@@ -174,6 +175,7 @@ def test_save_token_tightens_existing_permissive_file(cfg):
     token_path = cfg / "token.json"
     token_path.write_text("{}")
     import os
+
     os.chmod(token_path, 0o644)
 
     class FakeCreds:

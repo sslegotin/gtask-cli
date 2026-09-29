@@ -10,7 +10,7 @@ _ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def parse_due(text: str, today: date | None = None) -> date:
-    today = today or date.today()
+    today = today or date.today()  # noqa: DTZ011 - local calendar date is intended
     value = text.strip().lower()
     if value == "today":
         return today

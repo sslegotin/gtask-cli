@@ -4,7 +4,7 @@ import functools
 import json as jsonlib
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import requests
 import typer
@@ -12,7 +12,9 @@ from google.auth.exceptions import RefreshError
 
 from . import config
 from .api import TasksClient
-from .auth import LOGIN_HINT, login as auth_login, logout as auth_logout, make_session
+from .auth import LOGIN_HINT, make_session
+from .auth import login as auth_login
+from .auth import logout as auth_logout
 from .dates import parse_due, to_api
 from .errors import GtaskError, UsageError
 from .render import render_lists, render_task, render_tasks
@@ -28,7 +30,7 @@ app.add_typer(lists_app, name="lists")
 
 JsonOpt = Annotated[bool, typer.Option("--json", help="Print JSON instead of text.")]
 ListOpt = Annotated[
-    Optional[str],
+    str | None,
     typer.Option("-l", "--list", metavar="LIST", help="Task list: id, id prefix, or title."),
 ]
 YesOpt = Annotated[bool, typer.Option("-y", "--yes", help="Skip the confirmation prompt.")]
@@ -95,7 +97,7 @@ def main(ctx: typer.Context, json_: JsonOpt = False) -> None:
 def login(
     ctx: typer.Context,
     credentials: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--credentials",
             exists=True,
@@ -187,7 +189,11 @@ def lists_delete(
     if not yes and not as_json:
         typer.confirm(f"Delete list {tasklist['title']!r} and ALL its tasks?", abort=True)
     api.delete_tasklist(tasklist["id"])
-    emit({"deleted": [tasklist["id"]]}, as_json, f"Deleted list {tasklist['id']}  {tasklist['title']}")
+    emit(
+        {"deleted": [tasklist["id"]]},
+        as_json,
+        f"Deleted list {tasklist['id']}  {tasklist['title']}",
+    )
 
 
 @lists_app.command("default")
@@ -216,12 +222,16 @@ def ls(
     all_: Annotated[bool, typer.Option("-a", "--all", help="Include completed tasks.")] = False,
     flat: Annotated[bool, typer.Option("--flat", help="No tree indentation; API order.")] = False,
     due_before: Annotated[
-        Optional[str],
-        typer.Option("--due-before", metavar="DATE", help=f"Only tasks due on or before DATE. {DateOptHelp}"),
+        str | None,
+        typer.Option(
+            "--due-before", metavar="DATE", help=f"Only tasks due on or before DATE. {DateOptHelp}"
+        ),
     ] = None,
     due_after: Annotated[
-        Optional[str],
-        typer.Option("--due-after", metavar="DATE", help=f"Only tasks due on or after DATE. {DateOptHelp}"),
+        str | None,
+        typer.Option(
+            "--due-after", metavar="DATE", help=f"Only tasks due on or after DATE. {DateOptHelp}"
+        ),
     ] = None,
     json_: JsonOpt = False,
 ) -> None:
@@ -238,7 +248,9 @@ def ls(
 
 @app.command()
 @handle_errors
-def show(ctx: typer.Context, task_ref: TaskArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+def show(
+    ctx: typer.Context, task_ref: TaskArg, list_ref: ListOpt = None, json_: JsonOpt = False
+) -> None:
     """Show one task in detail."""
     tasklist, task = resolve_task(client(), task_ref, list_ref, config.get_default_list())
     emit(task, _json(ctx, json_), render_task(task, tasklist["title"]))
@@ -247,9 +259,9 @@ def show(ctx: typer.Context, task_ref: TaskArg, list_ref: ListOpt = None, json_:
 # ---- writing tasks ----------------------------------------------------------
 
 NotesOpt = Annotated[
-    Optional[str], typer.Option("-n", "--notes", help="Notes text. An empty string clears them.")
+    str | None, typer.Option("-n", "--notes", help="Notes text. An empty string clears them.")
 ]
-DueOpt = Annotated[Optional[str], typer.Option("-d", "--due", metavar="DATE", help=DateOptHelp)]
+DueOpt = Annotated[str | None, typer.Option("-d", "--due", metavar="DATE", help=DateOptHelp)]
 WRITABLE = ("id", "title", "notes", "status", "due", "completed")
 
 
@@ -273,11 +285,13 @@ def add(
     notes: NotesOpt = None,
     due: DueOpt = None,
     parent: Annotated[
-        Optional[str],
-        typer.Option("-p", "--parent", metavar="TASK", help="Create as a subtask of TASK (same list)."),
+        str | None,
+        typer.Option(
+            "-p", "--parent", metavar="TASK", help="Create as a subtask of TASK (same list)."
+        ),
     ] = None,
     after: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--after", metavar="TASK", help="Place right after TASK (same list)."),
     ] = None,
     json_: JsonOpt = False,
@@ -309,7 +323,7 @@ def update(
     ctx: typer.Context,
     task_ref: TaskArg,
     list_ref: ListOpt = None,
-    title: Annotated[Optional[str], typer.Option("--title", help="New title.")] = None,
+    title: Annotated[str | None, typer.Option("--title", help="New title.")] = None,
     notes: NotesOpt = None,
     due: DueOpt = None,
     no_due: Annotated[bool, typer.Option("--no-due", help="Remove the due date.")] = False,
@@ -345,7 +359,9 @@ def update(
 # ---- completion, deletion, clearing ----------------------------------------
 
 
-def _resolve_all(api: TasksClient, refs: list[str], list_ref: str | None) -> list[tuple[dict, dict]]:
+def _resolve_all(
+    api: TasksClient, refs: list[str], list_ref: str | None
+) -> list[tuple[dict, dict]]:
     """Resolve every reference before any write, so a bad one aborts the whole command."""
     default = config.get_default_list()
     return [resolve_task(api, ref, list_ref, default) for ref in refs]
@@ -353,26 +369,36 @@ def _resolve_all(api: TasksClient, refs: list[str], list_ref: str | None) -> lis
 
 @app.command()
 @handle_errors
-def done(ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+def done(
+    ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False
+) -> None:
     """Mark tasks completed."""
     api = client()
     results = [
         api.patch_task(tasklist["id"], task["id"], {"status": "completed"})
         for tasklist, task in _resolve_all(api, task_refs, list_ref)
     ]
-    emit(results, _json(ctx, json_), "\n".join(f"Completed {t['id']}  {t['title']}" for t in results))
+    emit(
+        results, _json(ctx, json_), "\n".join(f"Completed {t['id']}  {t['title']}" for t in results)
+    )
 
 
 @app.command()
 @handle_errors
-def undone(ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+def undone(
+    ctx: typer.Context, task_refs: TasksArg, list_ref: ListOpt = None, json_: JsonOpt = False
+) -> None:
     """Reopen completed tasks."""
     api = client()
     results = [
-        api.update_task(tasklist["id"], task["id"], _put_body(task, {"completed"}, status="needsAction"))
+        api.update_task(
+            tasklist["id"], task["id"], _put_body(task, {"completed"}, status="needsAction")
+        )
         for tasklist, task in _resolve_all(api, task_refs, list_ref)
     ]
-    emit(results, _json(ctx, json_), "\n".join(f"Reopened {t['id']}  {t['title']}" for t in results))
+    emit(
+        results, _json(ctx, json_), "\n".join(f"Reopened {t['id']}  {t['title']}" for t in results)
+    )
 
 
 @app.command()
@@ -424,14 +450,17 @@ def move(
     task_ref: TaskArg,
     list_ref: ListOpt = None,
     parent: Annotated[
-        Optional[str], typer.Option("-p", "--parent", metavar="TASK", help="Make it a subtask of TASK.")
+        str | None,
+        typer.Option("-p", "--parent", metavar="TASK", help="Make it a subtask of TASK."),
     ] = None,
     top: Annotated[bool, typer.Option("--top", help="Make it a top-level task.")] = False,
     after: Annotated[
-        Optional[str], typer.Option("--after", metavar="TASK", help="Place right after TASK.")
+        str | None, typer.Option("--after", metavar="TASK", help="Place right after TASK.")
     ] = None,
     first: Annotated[bool, typer.Option("--first", help="Place first among its siblings.")] = False,
-    to: Annotated[Optional[str], typer.Option("--to", metavar="LIST", help="Move to another list.")] = None,
+    to: Annotated[
+        str | None, typer.Option("--to", metavar="LIST", help="Move to another list.")
+    ] = None,
     json_: JsonOpt = False,
 ) -> None:
     """Reposition a task: nest, unnest, reorder, or move it to another list."""

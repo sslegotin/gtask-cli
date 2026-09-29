@@ -82,5 +82,7 @@ def resolve_task(
         return matches[0]
     if not matches:
         raise NotFoundError(f"No task matches {ref!r} in any list")
-    listing = "\n".join(f"  {task['id']}  [{lst['title']}] {task['title']}" for lst, task in matches)
+    listing = "\n".join(
+        f"  {task['id']}  [{lst['title']}] {task['title']}" for lst, task in matches
+    )
     raise AmbiguousError(f"{ref!r} matches several tasks:\n{listing}")

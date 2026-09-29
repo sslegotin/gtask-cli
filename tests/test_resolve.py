@@ -107,7 +107,7 @@ def test_resolve_task_exact_id_wins_across_lists(client, session):
 def test_resolve_task_with_list_ref_limits_search(client, session):
     session.add_task("Lalpha0000000000", "a", id="Tsame1")
     session.add_task("Lbeta00000000000", "b", id="Tsame2")
-    tasklist, task = resolve_task(client, "Tsame", list_ref="work")
+    _tasklist, task = resolve_task(client, "Tsame", list_ref="work")
     assert task["title"] == "b"
     with pytest.raises(NotFoundError):
         resolve_task(client, "Tsame1", list_ref="work")

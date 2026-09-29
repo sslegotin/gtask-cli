@@ -34,7 +34,9 @@ def test_list_tasks_params_and_pagination(client, session):
     lst = session.add_list("Inbox")
     for i in range(150):
         session.add_task(lst["id"], f"t{i}")
-    tasks = client.list_tasks(lst["id"], show_completed=False, show_hidden=True, due_min="a", due_max="b")
+    tasks = client.list_tasks(
+        lst["id"], show_completed=False, show_hidden=True, due_min="a", due_max="b"
+    )
     _, path, params, _ = session.calls[-1]
     assert path == f"/lists/{lst['id']}/tasks"
     assert params["showCompleted"] == "false" and params["showHidden"] == "true"
@@ -60,8 +62,12 @@ def test_task_methods(client, session):
     assert session.calls[-1][2] == {"parent": parent["id"]}
     assert child["parent"] == parent["id"] and child["notes"] == "n"
     assert client.get_task(lst["id"], child["id"]) == child
-    assert client.patch_task(lst["id"], child["id"], {"status": "completed"})["status"] == "completed"
-    put = client.update_task(lst["id"], child["id"], {"id": child["id"], "title": "c2", "status": "needsAction"})
+    assert (
+        client.patch_task(lst["id"], child["id"], {"status": "completed"})["status"] == "completed"
+    )
+    put = client.update_task(
+        lst["id"], child["id"], {"id": child["id"], "title": "c2", "status": "needsAction"}
+    )
     assert put["title"] == "c2" and "notes" not in put
     assert session.calls[-1][0] == "PUT"
     moved = client.move_task(lst["id"], child["id"], parent=None, previous=parent["id"])

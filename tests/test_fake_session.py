@@ -10,7 +10,9 @@ def test_lists_crud():
     created = s.request("POST", BASE + "/users/@me/lists", json={"title": "Work"}).json()
     assert created["title"] == "Work" and created["id"].startswith("L001")
     assert get(s, "/users/@me/lists").json()["items"] == [created]
-    renamed = s.request("PATCH", BASE + f"/users/@me/lists/{created['id']}", json={"title": "W"}).json()
+    renamed = s.request(
+        "PATCH", BASE + f"/users/@me/lists/{created['id']}", json={"title": "W"}
+    ).json()
     assert renamed["title"] == "W"
     assert s.request("DELETE", BASE + f"/users/@me/lists/{created['id']}").status_code == 204
     assert "items" not in get(s, "/users/@me/lists").json()
@@ -20,11 +22,14 @@ def test_lists_crud():
 def test_task_insert_order_and_previous():
     s = FakeSession()
     lst = s.add_list("Inbox")
-    a = s.request("POST", BASE + f"/lists/{lst['id']}/tasks", json={"title": "a"}).json()
+    s.request("POST", BASE + f"/lists/{lst['id']}/tasks", json={"title": "a"})
     b = s.request("POST", BASE + f"/lists/{lst['id']}/tasks", json={"title": "b"}).json()
-    c = s.request(
-        "POST", BASE + f"/lists/{lst['id']}/tasks", params={"previous": b["id"]}, json={"title": "c"}
-    ).json()
+    s.request(
+        "POST",
+        BASE + f"/lists/{lst['id']}/tasks",
+        params={"previous": b["id"]},
+        json={"title": "c"},
+    )
     titles = [t["title"] for t in get(s, f"/lists/{lst['id']}/tasks").json()["items"]]
     assert titles == ["b", "c", "a"]  # newest first unless previous given
     pos = {t["title"]: t["position"] for t in s.tasks[lst["id"]].values()}
@@ -58,9 +63,13 @@ def test_pagination():
     s.page_size = 2
     first = get(s, f"/lists/{lst['id']}/tasks", maxResults=100).json()
     assert len(first["items"]) == 2 and first["nextPageToken"]
-    second = get(s, f"/lists/{lst['id']}/tasks", maxResults=100, pageToken=first["nextPageToken"]).json()
+    second = get(
+        s, f"/lists/{lst['id']}/tasks", maxResults=100, pageToken=first["nextPageToken"]
+    ).json()
     assert len(second["items"]) == 2
-    third = get(s, f"/lists/{lst['id']}/tasks", maxResults=100, pageToken=second["nextPageToken"]).json()
+    third = get(
+        s, f"/lists/{lst['id']}/tasks", maxResults=100, pageToken=second["nextPageToken"]
+    ).json()
     assert len(third["items"]) == 1 and "nextPageToken" not in third
 
 
@@ -75,7 +84,9 @@ def test_patch_put_and_completed_handling():
     reopened = s.request("PATCH", url, json={"status": "needsAction"}).json()
     assert "completed" in reopened  # fake does not clear it; CLI must
     put = s.request("PUT", url, json={"id": t["id"], "title": "y", "status": "needsAction"}).json()
-    assert put["title"] == "y" and "notes" not in put and "due" not in put and "completed" not in put
+    assert (
+        put["title"] == "y" and "notes" not in put and "due" not in put and "completed" not in put
+    )
     assert put["position"] == original_position
 
 

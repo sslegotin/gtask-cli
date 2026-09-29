@@ -20,14 +20,16 @@ class TasksClient:
 
     # ---- transport --------------------------------------------------------
 
-    def _request(self, method: str, path: str, params: dict | None = None, json: dict | None = None):
+    def _request(
+        self, method: str, path: str, params: dict | None = None, json: dict | None = None
+    ):
         response = self._session.request(method, BASE_URL + path, params=params or {}, json=json)
         if response.status_code == 401:
             raise AuthError(LOGIN_HINT)
         if response.status_code >= 400:
             try:
                 message = response.json()["error"]["message"]
-            except Exception:
+            except Exception:  # noqa: BLE001 - any non-JSON error body falls back to raw text
                 message = response.text or "unknown error"
             raise ApiError(response.status_code, message)
         if response.status_code == 204 or not response.content:

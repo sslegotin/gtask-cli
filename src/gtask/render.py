@@ -54,7 +54,9 @@ def render_tasks(tasks: list[dict], flat: bool = False) -> str:
         due = from_api(task.get("due"))
         note = " +" if task.get("notes") else ""
         indent = "  " * depth
-        lines.append(f"{ids[task['id']]:<{width}}  {mark}  {due:<10}  {indent}{task.get('title', '')}{note}")
+        lines.append(
+            f"{ids[task['id']]:<{width}}  {mark}  {due:<10}  {indent}{task.get('title', '')}{note}"
+        )
     return "\n".join(lines)
 
 

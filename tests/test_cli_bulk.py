@@ -14,7 +14,10 @@ def test_done_multiple_across_lists(run, fake):
     seed(fake)
     result = run("done", "Tmilk", "Tout")
     assert result.exit_code == 0, result.output
-    assert result.output.splitlines() == ["Completed Tmilk0000  Milk", "Completed Tout00000  Outline"]
+    assert result.output.splitlines() == [
+        "Completed Tmilk0000  Milk",
+        "Completed Tout00000  Outline",
+    ]
     assert fake.tasks["Lalpha0000000000"]["Tmilk0000"]["status"] == "completed"
     assert fake.tasks["Lbeta00000000000"]["Tout00000"]["completed"]
     assert fake.calls[-1][:2] == ("PATCH", "/lists/Lbeta00000000000/tasks/Tout00000")

@@ -38,10 +38,13 @@ def test_add_after_adopts_previous_parent(run, fake):
     result = run("add", "Review", "-l", "work", "--after", "Tout")
     assert result.exit_code == 0, result.output
     assert fake.calls[-1][2] == {"parent": "Trep00000", "previous": "Tout00000"}
-    order = [t["title"] for t in sorted(
-        (t for t in fake.tasks["Lbeta00000000000"].values() if t.get("parent") == "Trep00000"),
-        key=lambda t: t["position"],
-    )]
+    order = [
+        t["title"]
+        for t in sorted(
+            (t for t in fake.tasks["Lbeta00000000000"].values() if t.get("parent") == "Trep00000"),
+            key=lambda t: t["position"],
+        )
+    ]
     assert order == ["Outline", "Review", "Slides"]
 
 
@@ -62,7 +65,7 @@ def test_update_title_uses_patch(run, fake):
     seed(fake)
     result = run("update", "Trep", "--title", "Final report")
     assert result.exit_code == 0 and "Updated Trep00000  Final report" in result.output
-    method, path, _, body = fake.calls[-1]
+    method, _path, _, body = fake.calls[-1]
     assert (method, body) == ("PATCH", {"title": "Final report"})
     assert fake.tasks["Lbeta00000000000"]["Trep00000"]["notes"] == "draft it"
 

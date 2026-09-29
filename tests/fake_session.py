@@ -39,13 +39,24 @@ class FakeSession:
 
     def add_list(self, title: str, id: str | None = None) -> dict:
         list_id = id or self._new_id("L")
-        self.lists[list_id] = {"kind": "tasks#taskList", "id": list_id, "title": title, "updated": _UPDATED}
+        self.lists[list_id] = {
+            "kind": "tasks#taskList",
+            "id": list_id,
+            "title": title,
+            "updated": _UPDATED,
+        }
         self.tasks[list_id] = {}
         return self.lists[list_id]
 
     def add_task(self, list_id: str, title: str, id: str | None = None, **fields) -> dict:
         task_id = id or self._new_id("T")
-        task = {"kind": "tasks#task", "id": task_id, "title": title, "status": "needsAction", "updated": _UPDATED}
+        task = {
+            "kind": "tasks#task",
+            "id": task_id,
+            "title": title,
+            "status": "needsAction",
+            "updated": _UPDATED,
+        }
         task.update(fields)
         if task["status"] == "completed":
             task.setdefault("completed", _UPDATED)
@@ -101,7 +112,7 @@ class FakeSession:
 
     def request(self, method: str, url: str, params=None, json=None) -> FakeResponse:
         params = dict(params or {})
-        path = url[len(BASE):]
+        path = url[len(BASE) :]
         self.calls.append((method, path, params, json))
         if self.next_error:
             status, message = self.next_error
@@ -201,7 +212,9 @@ class FakeSession:
             dest[g["t"]] = source.pop(g["t"])
             self._renumber(g["l"])
         parent, previous = params.get("parent"), params.get("previous")
-        if (parent and parent not in self.tasks[dest_id]) or (previous and previous not in self.tasks[dest_id]):
+        if (parent and parent not in self.tasks[dest_id]) or (
+            previous and previous not in self.tasks[dest_id]
+        ):
             return _error(400, "Invalid task id")
         self._place(dest_id, task, parent, previous)
         return FakeResponse(200, task)
