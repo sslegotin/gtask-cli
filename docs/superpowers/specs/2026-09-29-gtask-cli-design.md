@@ -191,10 +191,10 @@ Semantics:
   completed. `--due-before/--due-after` accept the same forms as `-d`.
 - `add`: `-p PARENT` resolves within the target list; `--after` likewise.
   Body: `title`, optional `notes`, optional `due`.
-- `update`: only the given fields are sent (PATCH). `--no-due` sends
-  `"due": null`... Google ignores null on PATCH, so `--no-due` is
-  implemented as a full PUT of the task with `due` removed. `-n ""`
-  clears notes the same way.
+- `update`: setting fields uses PATCH with only the given fields.
+  Clearing a field (`--no-due`, or `-n ""` to clear notes) fetches the
+  task, removes the field, and sends the whole object with PUT, because
+  a null in PATCH is not reliably honoured by the Tasks API.
 - `done` / `undone`: PATCH `status` to `completed` / `needsAction`.
   `undone` also clears `completed`. Multiple TASK args are resolved
   first, then applied; any resolution failure aborts before writes.
