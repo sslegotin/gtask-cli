@@ -412,3 +412,55 @@ def clear(ctx: typer.Context, list_ref: ListOpt = None, json_: JsonOpt = False) 
         _json(ctx, json_),
         f"Cleared completed tasks from {tasklist['title']}",
     )
+
+
+# ---- moving -------------------------------------------------------------------
+
+
+@app.command()
+@handle_errors
+def move(
+    ctx: typer.Context,
+    task_ref: TaskArg,
+    list_ref: ListOpt = None,
+    parent: Annotated[
+        Optional[str], typer.Option("-p", "--parent", metavar="TASK", help="Make it a subtask of TASK.")
+    ] = None,
+    top: Annotated[bool, typer.Option("--top", help="Make it a top-level task.")] = False,
+    after: Annotated[
+        Optional[str], typer.Option("--after", metavar="TASK", help="Place right after TASK.")
+    ] = None,
+    first: Annotated[bool, typer.Option("--first", help="Place first among its siblings.")] = False,
+    to: Annotated[Optional[str], typer.Option("--to", metavar="LIST", help="Move to another list.")] = None,
+    json_: JsonOpt = False,
+) -> None:
+    """Reposition a task: nest, unnest, reorder, or move it to another list."""
+    if parent and top:
+        raise UsageError("--parent and --top are mutually exclusive")
+    if after and first:
+        raise UsageError("--after and --first are mutually exclusive")
+    if not any([parent, top, after, first, to]):
+        raise UsageError("Nothing to do: give --parent/--top, --after/--first, and/or --to LIST")
+    api = client()
+    default = config.get_default_list()
+    tasklist, task = resolve_task(api, task_ref, list_ref, default)
+    destination = resolve_list(api, to, default) if to else tasklist
+    previous = find_task(api, destination, after) if after else None
+    if parent:
+        parent_id = find_task(api, destination, parent)["id"]
+    elif top:
+        parent_id = None
+    elif previous is not None:
+        parent_id = previous.get("parent")  # stay a sibling of --after
+    elif to:
+        parent_id = None
+    else:
+        parent_id = task.get("parent")  # --first alone keeps the current nesting
+    moved = api.move_task(
+        tasklist["id"],
+        task["id"],
+        parent=parent_id,
+        previous=previous["id"] if previous else None,
+        destination_list=destination["id"] if to else None,
+    )
+    emit(moved, _json(ctx, json_), f"Moved {moved['id']}  {moved['title']}")
