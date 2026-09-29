@@ -1,0 +1,39 @@
+[project]
+name = "gtask-cli"
+version = "0.1.0"
+description = "Google Tasks from the command line, for humans and AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15",
+    "google-auth>=2.30",
+    "google-auth-oauthlib>=1.2",
+    "requests>=2.32",
+]
+
+[project.scripts]
+gtask = "gtask.cli:app"
+
+[tool.poetry]
+packages = [{ include = "gtask", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8"
+ruff = ">=0.6"
+
+[tool.poetry.group.bundle]
+optional = true
+
+[tool.poetry.group.bundle.dependencies]
+pyinstaller = ">=6"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
