@@ -69,6 +69,31 @@ def test_login_installs_secret_runs_flow_and_saves_token(tmp_path, monkeypatch, 
     assert mode(cfg / "token.json") == 0o600
 
 
+def test_login_prompt_goes_to_stderr(monkeypatch, cfg, capsys):
+    cfg.mkdir()
+    (cfg / "client_secret.json").write_text("{}")
+
+    class FakeFlow:
+        @classmethod
+        def from_client_secrets_file(cls, path, scopes):
+            return cls()
+
+        def run_local_server(self, port):
+            print("Please visit this URL")
+
+            class C:
+                def to_json(self):
+                    return "{}"
+
+            return C()
+
+    monkeypatch.setattr(auth, "InstalledAppFlow", FakeFlow)
+    auth.login()
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert "Please visit this URL" in out.err
+
+
 def test_login_reuses_installed_secret(monkeypatch, cfg):
     cfg.mkdir()
     (cfg / "client_secret.json").write_text("{}")
@@ -141,7 +166,7 @@ def test_load_credentials_expired_refreshes_and_saves(cfg, monkeypatch):
 
     def fake_refresh(self, request):
         self.token = "fresh"
-        self.expiry = datetime(2099, 1, 1)  # noqa: DTZ001
+        self.expiry = datetime(2099, 1, 1)  # noqa: DTZ001 - naive datetime matches google-auth's naive UTC expiry
 
     monkeypatch.setattr(Credentials, "refresh", fake_refresh)
     creds = auth.load_credentials()

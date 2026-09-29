@@ -1,5 +1,7 @@
 import json
 
+from google.auth.exceptions import TransportError
+
 from gtask import cli
 
 
@@ -90,3 +92,13 @@ def test_debug_env_reraises(run, monkeypatch):
     monkeypatch.setenv("GTASK_DEBUG", "1")
     result = run("login")
     assert isinstance(result.exception, RuntimeError)
+
+
+def test_transport_error_is_network_failure(run, monkeypatch):
+    def boom():
+        raise TransportError("boom")
+
+    monkeypatch.setattr("gtask.cli.make_session", boom)
+    result = run("lists")
+    assert result.exit_code == 1
+    assert "error: network failure" in result.output

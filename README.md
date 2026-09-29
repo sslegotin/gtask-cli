@@ -61,9 +61,9 @@ gtask lists delete LIST [--yes]
 gtask lists default LIST             list used when -l is omitted
 
 gtask ls [-l LIST] [--all] [--flat] [--due-before DATE] [--due-after DATE]
-gtask show TASK
+gtask show TASK [-l LIST]
 gtask add TITLE [-l LIST] [-n NOTES] [-d DUE] [-p PARENT] [--after TASK]
-gtask update TASK [--title T] [-n NOTES] [-d DUE | --no-due]
+gtask update TASK [-l LIST] [--title T] [-n NOTES] [-d DUE | --no-due]
 gtask done TASK...      gtask undone TASK...      gtask delete TASK... [--yes]
 gtask move TASK [-p PARENT | --top] [--after TASK | --first] [--to LIST]
 gtask clear [-l LIST]                hide completed tasks
@@ -93,7 +93,8 @@ API objects on stdout. Errors always go to stderr as `error: <message>`.
 | 4 | reference not found or ambiguous |
 
 Set `GTASK_DEBUG=1` to see full tracebacks. Set `GTASK_CONFIG_DIR` to use a
-different config directory (default `~/.config/gtask`).
+different config directory (default `$XDG_CONFIG_HOME/gtask` if set, else
+`~/.config/gtask`).
 
 ## Using gtask from an AI agent
 

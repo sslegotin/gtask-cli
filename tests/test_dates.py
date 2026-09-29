@@ -31,7 +31,7 @@ def test_parse_due_rejects_garbage(text):
 
 
 def test_parse_due_defaults_to_real_today():
-    assert parse_due("today") == date.today()  # noqa: DTZ011
+    assert parse_due("today") == date.today()  # noqa: DTZ011 - parse_due('today') deliberately uses the local date
 
 
 def test_to_api():

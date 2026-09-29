@@ -1,6 +1,8 @@
 """OAuth 2.0 installed-app login, token persistence, and the authorized HTTP session."""
 
+import contextlib
 import os
+import sys
 from pathlib import Path
 
 from google.auth.exceptions import RefreshError
@@ -43,7 +45,9 @@ def login(credentials_file: Path | None = None) -> None:
         flow = InstalledAppFlow.from_client_secrets_file(str(secret), SCOPES)
     except ValueError as exc:
         raise AuthError(f"{secret} is not a valid OAuth client file: {exc}") from exc
-    creds = flow.run_local_server(port=0)
+    # The library prints the authorization URL to stdout; keep stdout clean for --json.
+    with contextlib.redirect_stdout(sys.stderr):
+        creds = flow.run_local_server(port=0)
     save_token(creds)
 
 

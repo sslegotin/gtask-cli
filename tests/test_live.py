@@ -15,6 +15,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture
+def config_dir():
+    """Override the autouse conftest fixture so the real token is used."""
+    return token_path().parent
+
+
 def test_live_roundtrip():
     api = TasksClient(make_session())
     tasklist = api.create_tasklist(f"gtask-live-{uuid.uuid4().hex[:8]}")
@@ -48,16 +54,13 @@ def test_live_roundtrip():
         moved = api.move_task(tasklist["id"], child["id"])  # no parent => top level
         assert "parent" not in moved
 
-        due_filtered = api.list_tasks(
-            tasklist["id"], due_min="2026-10-05T00:00:00.000Z", due_max="2026-10-05T00:00:00.000Z"
-        )
         # Documents whether dueMax is inclusive. parent3 no longer has a due date, so re-add one:
         api.patch_task(tasklist["id"], parent["id"], {"due": "2026-10-05T00:00:00.000Z"})
         due_filtered = api.list_tasks(
             tasklist["id"], due_min="2026-10-05T00:00:00.000Z", due_max="2026-10-05T00:00:00.000Z"
         )
         assert [t["id"] for t in due_filtered] == [parent["id"]], (
-            "dueMax is exclusive; see plan Task 16 step 7"
+            "expected dueMax to be inclusive; if this fails see plan Task 16 step 7"
         )
 
         assert {t["id"] for t in api.list_tasks(tasklist["id"])} == {parent["id"], child["id"]}

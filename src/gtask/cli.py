@@ -8,7 +8,7 @@ from typing import Annotated
 
 import requests
 import typer
-from google.auth.exceptions import RefreshError
+from google.auth.exceptions import RefreshError, TransportError
 
 from . import config
 from .api import TasksClient
@@ -54,7 +54,7 @@ def handle_errors(fn):
         except RefreshError:
             typer.echo(f"error: {LOGIN_HINT}", err=True)
             raise typer.Exit(3)
-        except requests.ConnectionError as exc:
+        except (requests.ConnectionError, TransportError) as exc:
             typer.echo(f"error: network failure: {exc}", err=True)
             raise typer.Exit(1)
         except (typer.Exit, typer.Abort, KeyboardInterrupt):
@@ -219,7 +219,9 @@ DateOptHelp = "YYYY-MM-DD, today, tomorrow, or +Nd."
 def ls(
     ctx: typer.Context,
     list_ref: ListOpt = None,
-    all_: Annotated[bool, typer.Option("-a", "--all", help="Include completed tasks.")] = False,
+    all_: Annotated[
+        bool, typer.Option("-a", "--all", help="Include completed and cleared (hidden) tasks.")
+    ] = False,
     flat: Annotated[bool, typer.Option("--flat", help="No tree indentation; API order.")] = False,
     due_before: Annotated[
         str | None,
@@ -412,12 +414,16 @@ def delete(
 ) -> None:
     """Delete tasks (subtasks go with their parent)."""
     api = client()
-    pairs = _resolve_all(api, task_refs, list_ref)
+    unique: dict[str, tuple[dict, dict]] = {}
+    for pair in _resolve_all(api, task_refs, list_ref):
+        unique.setdefault(pair[1]["id"], pair)
+    pairs = list(unique.values())
     as_json = _json(ctx, json_)
     if not yes and not as_json:
         listing = "\n".join(f"  {task['id']}  {task['title']}" for _, task in pairs)
         typer.confirm(f"Delete {len(pairs)} task(s):\n{listing}\nProceed?", abort=True)
-    for tasklist, task in pairs:
+    # A subtask is deleted with its parent, so a separate DELETE would 404.
+    for tasklist, task in [p for p in pairs if p[1].get("parent") not in unique]:
         api.delete_task(tasklist["id"], task["id"])
     emit(
         {"deleted": [task["id"] for _, task in pairs]},

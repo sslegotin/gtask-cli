@@ -74,6 +74,24 @@ def test_delete_with_list_scopes_lookup(run, fake):
     assert result.exit_code == 4 and "in list 'Work'" in result.output
 
 
+def test_delete_duplicate_refs_deletes_once(run, fake):
+    seed(fake)
+    result = run("delete", "Tmilk", "Tmilk", "--yes")
+    assert result.exit_code == 0, result.output
+    assert [c for c in fake.calls if c[0] == "DELETE"] == [
+        ("DELETE", "/lists/Lalpha0000000000/tasks/Tmilk0000", *fake.calls[-1][2:])
+    ]
+
+
+def test_delete_parent_and_child_deletes_only_parent(run, fake):
+    seed(fake)
+    result = run("delete", "Trep", "Tout", "--yes", "--json")
+    assert result.exit_code == 0, result.output
+    deletes = [c for c in fake.calls if c[0] == "DELETE"]
+    assert len(deletes) == 1 and deletes[0][1] == "/lists/Lbeta00000000000/tasks/Trep00000"
+    assert json.loads(result.stdout) == {"deleted": ["Trep00000", "Tout00000"]}
+
+
 def test_clear_default_and_named_list(run, fake):
     seed(fake)
     result = run("clear", "-l", "work")
