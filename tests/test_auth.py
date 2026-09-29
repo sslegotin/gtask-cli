@@ -167,3 +167,19 @@ def test_make_session_wraps_credentials(cfg, monkeypatch):
     (cfg / "token.json").write_text(json.dumps(VALID_TOKEN))
     session = auth.make_session()
     assert session.credentials.token == "access"
+
+
+def test_save_token_tightens_existing_permissive_file(cfg):
+    cfg.mkdir()
+    token_path = cfg / "token.json"
+    token_path.write_text("{}")
+    import os
+    os.chmod(token_path, 0o644)
+
+    class FakeCreds:
+        def to_json(self):
+            return "{}"
+
+    auth.save_token(FakeCreds())
+    assert mode(token_path) == 0o600
+    assert token_path.read_text() == "{}"

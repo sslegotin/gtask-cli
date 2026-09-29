@@ -17,7 +17,9 @@ LOGIN_HINT = "Not logged in or token expired. Run: gtask login"
 
 def _write_private(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
     os.chmod(path, 0o600)
 
 
