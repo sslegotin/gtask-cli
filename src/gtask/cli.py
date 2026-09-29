@@ -201,3 +201,44 @@ def lists_default(ctx: typer.Context, list_ref: ListArg, json_: JsonOpt = False)
         _json(ctx, json_),
         f"Default list set to {tasklist['id']}  {tasklist['title']}",
     )
+
+
+# ---- reading tasks ----------------------------------------------------------
+
+DateOptHelp = "YYYY-MM-DD, today, tomorrow, or +Nd."
+
+
+@app.command()
+@handle_errors
+def ls(
+    ctx: typer.Context,
+    list_ref: ListOpt = None,
+    all_: Annotated[bool, typer.Option("-a", "--all", help="Include completed tasks.")] = False,
+    flat: Annotated[bool, typer.Option("--flat", help="No tree indentation; API order.")] = False,
+    due_before: Annotated[
+        Optional[str],
+        typer.Option("--due-before", metavar="DATE", help=f"Only tasks due on or before DATE. {DateOptHelp}"),
+    ] = None,
+    due_after: Annotated[
+        Optional[str],
+        typer.Option("--due-after", metavar="DATE", help=f"Only tasks due on or after DATE. {DateOptHelp}"),
+    ] = None,
+    json_: JsonOpt = False,
+) -> None:
+    """List tasks in a list (open tasks only unless --all)."""
+    due_min = to_api(parse_due(due_after)) if due_after else None
+    due_max = to_api(parse_due(due_before)) if due_before else None
+    api = client()
+    tasklist = resolve_list(api, list_ref, config.get_default_list())
+    tasks = api.list_tasks(
+        tasklist["id"], show_completed=all_, show_hidden=all_, due_min=due_min, due_max=due_max
+    )
+    emit(tasks, _json(ctx, json_), render_tasks(tasks, flat=flat))
+
+
+@app.command()
+@handle_errors
+def show(ctx: typer.Context, task_ref: TaskArg, list_ref: ListOpt = None, json_: JsonOpt = False) -> None:
+    """Show one task in detail."""
+    tasklist, task = resolve_task(client(), task_ref, list_ref, config.get_default_list())
+    emit(task, _json(ctx, json_), render_task(task, tasklist["title"]))
