@@ -242,3 +242,101 @@ def show(ctx: typer.Context, task_ref: TaskArg, list_ref: ListOpt = None, json_:
     """Show one task in detail."""
     tasklist, task = resolve_task(client(), task_ref, list_ref, config.get_default_list())
     emit(task, _json(ctx, json_), render_task(task, tasklist["title"]))
+
+
+# ---- writing tasks ----------------------------------------------------------
+
+NotesOpt = Annotated[
+    Optional[str], typer.Option("-n", "--notes", help="Notes text. An empty string clears them.")
+]
+DueOpt = Annotated[Optional[str], typer.Option("-d", "--due", metavar="DATE", help=DateOptHelp)]
+WRITABLE = ("id", "title", "notes", "status", "due", "completed")
+
+
+def _put_body(task: dict, remove: set[str], **changes) -> dict:
+    """Full-replacement body for PUT: writable fields of `task` minus `remove`, plus `changes`.
+
+    The Tasks API does not reliably clear a field from a PATCH with null, so clearing
+    goes through PUT with the field absent.
+    """
+    body = {key: task[key] for key in WRITABLE if key in task and key not in remove}
+    body.update(changes)
+    return body
+
+
+@app.command()
+@handle_errors
+def add(
+    ctx: typer.Context,
+    title: Annotated[str, typer.Argument(help="Task title.")],
+    list_ref: ListOpt = None,
+    notes: NotesOpt = None,
+    due: DueOpt = None,
+    parent: Annotated[
+        Optional[str],
+        typer.Option("-p", "--parent", metavar="TASK", help="Create as a subtask of TASK (same list)."),
+    ] = None,
+    after: Annotated[
+        Optional[str],
+        typer.Option("--after", metavar="TASK", help="Place right after TASK (same list)."),
+    ] = None,
+    json_: JsonOpt = False,
+) -> None:
+    """Add a task to the default list (or -l LIST)."""
+    body: dict = {"title": title}
+    if notes:
+        body["notes"] = notes
+    if due:
+        body["due"] = to_api(parse_due(due))
+    api = client()
+    tasklist = resolve_list(api, list_ref, config.get_default_list())
+    previous = find_task(api, tasklist, after) if after else None
+    if parent:
+        parent_id = find_task(api, tasklist, parent)["id"]
+    elif previous is not None:
+        parent_id = previous.get("parent")
+    else:
+        parent_id = None
+    task = api.create_task(
+        tasklist["id"], body, parent=parent_id, previous=previous["id"] if previous else None
+    )
+    emit(task, _json(ctx, json_), f"Added {task['id']}  {task['title']}")
+
+
+@app.command()
+@handle_errors
+def update(
+    ctx: typer.Context,
+    task_ref: TaskArg,
+    list_ref: ListOpt = None,
+    title: Annotated[Optional[str], typer.Option("--title", help="New title.")] = None,
+    notes: NotesOpt = None,
+    due: DueOpt = None,
+    no_due: Annotated[bool, typer.Option("--no-due", help="Remove the due date.")] = False,
+    json_: JsonOpt = False,
+) -> None:
+    """Change a task's title, notes, or due date."""
+    if due and no_due:
+        raise UsageError("--due and --no-due are mutually exclusive")
+    if title is None and notes is None and not due and not no_due:
+        raise UsageError("Nothing to update: give --title, --notes, --due, or --no-due")
+    changes: dict = {}
+    remove: set[str] = set()
+    if title is not None:
+        changes["title"] = title
+    if notes is not None:
+        if notes == "":
+            remove.add("notes")
+        else:
+            changes["notes"] = notes
+    if due:
+        changes["due"] = to_api(parse_due(due))
+    if no_due:
+        remove.add("due")
+    api = client()
+    tasklist, task = resolve_task(api, task_ref, list_ref, config.get_default_list())
+    if remove:
+        task = api.update_task(tasklist["id"], task["id"], _put_body(task, remove, **changes))
+    else:
+        task = api.patch_task(tasklist["id"], task["id"], changes)
+    emit(task, _json(ctx, json_), f"Updated {task['id']}  {task['title']}")
