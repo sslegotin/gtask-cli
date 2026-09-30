@@ -7,3 +7,4 @@ build/
 *.spec
 .venv/
 poetry.lock
+client_secret_*.json
